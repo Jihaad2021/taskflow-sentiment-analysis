@@ -149,3 +149,86 @@ def test_sample_values_truncated(agent):
     for candidate in output.candidates:
         for sample in candidate.sample_values:
             assert len(sample) <= 100
+
+
+def test_llm_fallback_triggered(agent):
+    """Test that LLM fallback is triggered for low confidence."""
+    # DataFrame with no obvious column names and short text
+    df = pd.DataFrame({"a": ["hi", "ok", "no"], "b": [1, 2, 3], "c": ["yes", "maybe", "sure"]})
+
+    input_data = ColumnDetectorInput(dataframe=df)
+    output = agent.execute(input_data)
+
+    # With short text, confidence should be low, triggering LLM
+    # Mock LLM should return a result
+    assert output.method == "llm"
+    assert output.confidence >= 0.7  # LLM boosts confidence
+
+
+def test_llm_fallback_with_mock():
+    """Test LLM fallback with custom mock."""
+
+    class CustomMockLLM:
+        def generate(self, prompt, **kwargs):
+            return {
+                "content": '{"column": "feedback", "reasoning": "Contains user feedback"}',
+                "tokens": {"input": 100, "output": 50},
+                "cost": 0.001,
+            }
+
+    agent = ColumnDetectorAgent(llm=CustomMockLLM())
+
+    df = pd.DataFrame({"feedback": ["short", "text", "here"], "id": [1, 2, 3]})
+
+    input_data = ColumnDetectorInput(dataframe=df)
+    output = agent.execute(input_data)
+
+    assert output.column_name == "feedback"
+    assert output.method == "llm"
+    assert "LLM:" in output.reasoning
+
+
+def test_llm_fallback_fails_gracefully():
+    """Test that agent falls back to heuristic if LLM fails."""
+
+    class FailingLLM:
+        def generate(self, prompt, **kwargs):
+            raise Exception("LLM API error")
+
+    agent = ColumnDetectorAgent(llm=FailingLLM())
+
+    df = pd.DataFrame({"text": ["a", "b", "c"], "id": [1, 2, 3]})  # Low confidence
+
+    input_data = ColumnDetectorInput(dataframe=df)
+    output = agent.execute(input_data)
+
+    # Should still return result (heuristic fallback)
+    assert output.column_name == "text"
+    assert output.method == "heuristic"
+
+
+def test_llm_invalid_json_response():
+    """Test handling of invalid JSON from LLM."""
+
+    class BadJSONLLM:
+        def generate(self, prompt, **kwargs):
+            return {
+                "content": "This is not valid JSON",
+                "tokens": {"input": 100, "output": 50},
+                "cost": 0.001,
+            }
+
+    agent = ColumnDetectorAgent(llm=BadJSONLLM())
+
+    df = pd.DataFrame(
+        {
+            "data": ["x", "y", "z"],
+        }
+    )
+
+    input_data = ColumnDetectorInput(dataframe=df)
+    output = agent.execute(input_data)
+
+    # Should fall back to heuristic
+    assert output.column_name == "data"
+    assert output.method == "heuristic"

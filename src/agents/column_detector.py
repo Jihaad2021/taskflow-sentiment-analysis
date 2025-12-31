@@ -1,11 +1,13 @@
 """Column detection agent."""
 
+import json
 from typing import List, Optional, Tuple
 
 import pandas as pd
 from pydantic import BaseModel
 
 from src.agents.base import BaseAgent
+from src.llm.mock_llm import MockLLM
 from src.models.schemas import (
     ColumnCandidate,
     ColumnDetectorInput,
@@ -35,11 +37,16 @@ class ColumnDetectorAgent(BaseAgent):
         "remark",
     ]
 
-    def __init__(self):
-        """Initialize column detector."""
+    def __init__(self, llm=None):
+        """Initialize column detector.
+
+        Args:
+            llm: Optional LLM instance for fallback (defaults to MockLLM)
+        """
         from src.models.schemas import AgentConfig
 
         super().__init__(AgentConfig(name="ColumnDetectorAgent"))
+        self.llm = llm or MockLLM()
 
     def execute(self, input_data: BaseModel) -> BaseModel:
         """Detect text column in DataFrame.
@@ -72,17 +79,25 @@ class ColumnDetectorAgent(BaseAgent):
         # Select best candidate
         best_candidate = candidates[0]
 
-        # Determine method and create output
+        # Determine method
         method = "heuristic"
+        reasoning = best_candidate.reason
+
+        # LLM fallback for low confidence
         if best_candidate.confidence < 0.7:
-            # TODO: LLM fallback (Week 1 Day 4)
-            method = "heuristic"
+            self.logger.info("Low confidence, using LLM fallback")
+            llm_result = self._llm_fallback(df, candidates[:3])
+
+            if llm_result:
+                best_candidate = llm_result
+                method = "llm"
+                reasoning = llm_result.reason
 
         output = ColumnDetectorOutput(
             column_name=best_candidate.column,
             confidence=best_candidate.confidence,
             method=method,
-            reasoning=best_candidate.reason,
+            reasoning=reasoning,
             candidates=candidates[:3],  # Top 3 candidates
         )
 
@@ -213,6 +228,112 @@ class ColumnDetectorAgent(BaseAgent):
         reason = "; ".join(reasons) if reasons else "Low confidence"
 
         return score, reason
+
+    def _llm_fallback(
+        self, df: pd.DataFrame, candidates: List[ColumnCandidate]
+    ) -> Optional[ColumnCandidate]:
+        """Use LLM to select best column when heuristic confidence is low.
+
+        Args:
+            df: DataFrame
+            candidates: Top candidate columns
+
+        Returns:
+            ColumnCandidate selected by LLM, or None if LLM fails
+        """
+        try:
+            # Prepare prompt
+            prompt = self._create_llm_prompt(df, candidates)
+
+            # Call LLM
+            response = self.llm.generate(prompt, max_tokens=200, temperature=0.3)
+
+            # Parse response
+            result = self._parse_llm_response(response["content"], candidates)
+
+            if result:
+                self.logger.info(f"LLM selected column: {result.column}")
+                return result
+
+        except Exception as e:
+            self.logger.error(f"LLM fallback failed: {e}")
+
+        return None
+
+    def _create_llm_prompt(self, df: pd.DataFrame, candidates: List[ColumnCandidate]) -> str:
+        """Create prompt for LLM.
+
+        Args:
+            df: DataFrame
+            candidates: Candidate columns
+
+        Returns:
+            Formatted prompt string
+        """
+        prompt = """You are analyzing a CSV file to detect which column contains text comments/reviews for sentiment analysis.
+
+Available columns:
+"""
+
+        for i, candidate in enumerate(candidates, 1):
+            prompt += f"\n{i}. Column: '{candidate.column}'\n"
+            prompt += f"   Confidence: {candidate.confidence:.2f}\n"
+            prompt += f"   Reason: {candidate.reason}\n"
+            prompt += "   Sample values:\n"
+            for sample in candidate.sample_values[:2]:
+                prompt += f"   - {sample}\n"
+
+        prompt += """
+Select the column most likely to contain text comments/reviews for sentiment analysis.
+
+Respond ONLY with JSON in this exact format:
+{"column": "column_name", "reasoning": "your reasoning here"}
+"""
+
+        return prompt
+
+    def _parse_llm_response(
+        self, response: str, candidates: List[ColumnCandidate]
+    ) -> Optional[ColumnCandidate]:
+        """Parse LLM JSON response.
+
+        Args:
+            response: LLM response string
+            candidates: Available candidates
+
+        Returns:
+            ColumnCandidate from LLM selection, or None if parsing fails
+        """
+        try:
+            # Extract JSON from response (handle markdown code blocks)
+            response = response.strip()
+            if response.startswith("```"):
+                # Remove markdown code blocks
+                lines = response.split("\n")
+                response = "\n".join(lines[1:-1])
+
+            data = json.loads(response)
+
+            selected_column = data.get("column")
+            reasoning = data.get("reasoning", "Selected by LLM")
+
+            # Find matching candidate
+            for candidate in candidates:
+                if candidate.column == selected_column:
+                    # Update with LLM reasoning and boost confidence
+                    return ColumnCandidate(
+                        column=candidate.column,
+                        confidence=0.85,  # LLM selection gets high confidence
+                        reason=f"LLM: {reasoning}",
+                        sample_values=candidate.sample_values,
+                    )
+
+        except json.JSONDecodeError as e:
+            self.logger.error(f"Failed to parse LLM JSON: {e}")
+        except Exception as e:
+            self.logger.error(f"Error parsing LLM response: {e}")
+
+        return None
 
     def _get_sample_values(self, df: pd.DataFrame, col: str, n: int = 3) -> List[str]:
         """Get sample values from column.
