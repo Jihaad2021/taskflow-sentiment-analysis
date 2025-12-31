@@ -302,3 +302,26 @@ class ReportPlannerOutput(BaseModel):
     narrative_flow: List[str]
     estimated_sections: int
     llm_cost: float = 0.0
+
+
+# ============================================================================
+# Agent 6: ReportWriter Schemas
+# ============================================================================
+
+
+class ReportWriterInput(BaseModel):
+    """Input for ReportWriterAgent."""
+
+    report_plan: ReportPlannerOutput
+    tool_results: AnalysisOrchestratorOutput
+    regeneration_feedback: Optional[str] = None
+
+
+class ReportWriterOutput(BaseModel):
+    """Output from ReportWriterAgent."""
+
+    report_text: str
+    sections_generated: List[str]
+    word_count: int
+    generation_time: float
+    llm_cost: float

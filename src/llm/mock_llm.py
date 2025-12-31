@@ -63,7 +63,53 @@ class MockLLM(BaseLLM):
 
     def _generate_text_response(self, prompt: str) -> str:
         """Generate mock text response."""
+
+        # For report writing
+        if "Write a complete, professional report" in prompt or "Report Outline" in prompt:
+            return self._generate_mock_report()
+
         return "This is a mock LLM response for testing purposes."
+
+    def _generate_mock_report(self) -> str:
+        """Generate mock report in Markdown."""
+        return """# Sentiment Analysis Report
+
+## Executive Summary
+
+This report analyzes customer feedback from 100 comments. The analysis reveals predominantly positive sentiment (60%) with key themes around product quality and customer service.
+
+**Key Findings:**
+- 60% positive sentiment
+- Quality mentioned in 40 comments
+- Strong customer satisfaction
+
+## Sentiment Analysis
+
+The sentiment distribution shows:
+- **Positive**: 60 comments (60%)
+- **Negative**: 30 comments (30%)
+- **Neutral**: 10 comments (10%)
+
+This indicates overall positive customer perception.
+
+## Key Topics
+
+### Quality
+Quality was the most discussed topic with 40 mentions and positive sentiment (0.7).
+
+### Service
+Customer service received 30 mentions with moderately positive feedback (0.5).
+
+## Recommendations
+
+Based on the analysis:
+1. Continue focus on quality maintenance
+2. Improve customer service response times
+3. Address negative feedback promptly
+
+## Conclusion
+
+Overall customer sentiment is positive with clear areas for improvement in service delivery."""
 
     def count_tokens(self, text: str) -> int:
         """Count tokens (mock: ~4 chars per token)."""
