@@ -358,3 +358,40 @@ class ReportEvaluatorOutput(BaseModel):
     should_regenerate: bool
     feedback: Optional[str] = None
     llm_cost: float = 0.0
+
+
+# ============================================================================
+# Report Generator (Full Pipeline)
+# ============================================================================
+
+
+class ReportGeneratorInput(BaseModel):
+    """Input for full report generation pipeline."""
+
+    tool_results: AnalysisOrchestratorOutput
+    quality_assessment: PrePromptEvaluatorOutput
+    report_type: str
+    max_regenerations: int = Field(default=3, ge=1, le=5)
+
+
+class RegenerationAttempt(BaseModel):
+    """Single regeneration attempt record."""
+
+    attempt: int
+    word_count: int
+    quality_score: float
+    status: str
+    issues: List[str]
+    cost: float
+
+
+class ReportGeneratorOutput(BaseModel):
+    """Output from full report generation."""
+
+    report_text: str
+    quality_score: float = Field(..., ge=0.0, le=100.0)
+    attempts: int
+    total_cost: float
+    total_time: float
+    final_status: str
+    regeneration_history: List[Dict[str, Any]] = Field(default_factory=list)
