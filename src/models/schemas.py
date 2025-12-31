@@ -244,3 +244,61 @@ class PrePromptEvaluatorOutput(BaseModel):
     recommendations: List[str] = Field(default_factory=list)
     should_proceed: bool
     metadata: Dict[str, Any] = Field(default_factory=dict)
+
+
+# ============================================================================
+# LLM Configuration
+# ============================================================================
+
+
+class LLMConfig(BaseModel):
+    """Configuration for LLM provider."""
+
+    provider: str = Field(..., description="'anthropic' or 'openai'")
+    model: str = Field(..., description="Model name")
+    api_key: str = Field(..., description="API key")
+    max_tokens: int = Field(default=2000, ge=100, le=8000)
+    temperature: float = Field(default=0.7, ge=0.0, le=2.0)
+    timeout: int = Field(default=60, ge=10, le=300)
+
+
+# ============================================================================
+# Agent 5: ReportPlanner Schemas
+# ============================================================================
+
+
+class ReportSection(BaseModel):
+    """Single section in report."""
+
+    name: str
+    priority: str  # 'high', 'medium', 'low'
+    key_points: List[str]
+    data_sources: List[str]
+    estimated_length: str  # e.g., '2-3 paragraphs'
+
+
+class ReportOutline(BaseModel):
+    """Structure of the report."""
+
+    title: str
+    sections: List[ReportSection]
+    recommended_length: str  # e.g., '5-7 pages'
+
+
+class ReportPlannerInput(BaseModel):
+    """Input for ReportPlannerAgent."""
+
+    tool_results: AnalysisOrchestratorOutput
+    report_type: str
+    quality_assessment: PrePromptEvaluatorOutput
+
+
+class ReportPlannerOutput(BaseModel):
+    """Output from ReportPlannerAgent."""
+
+    report_outline: ReportOutline
+    key_insights: List[str]
+    recommended_focus: List[str]
+    narrative_flow: List[str]
+    estimated_sections: int
+    llm_cost: float = 0.0

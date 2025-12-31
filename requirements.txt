@@ -23,6 +23,11 @@ aiohttp==3.9.1
 # Logging
 loguru==0.7.2
 
+# LLM Integration (add these)
+anthropic==0.39.0
+openai==1.54.0
+tiktoken==0.8.0
+
 # Report generation (Week 4)
 # weasyprint==60.1
 # markdown2==2.4.10
