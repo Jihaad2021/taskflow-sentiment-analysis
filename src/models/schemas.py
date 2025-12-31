@@ -1,6 +1,6 @@
 """Pydantic schemas for data validation."""
 
-from typing import Any, List, Optional
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
@@ -106,5 +106,109 @@ class DataValidatorOutput(BaseModel):
 
 
 # ============================================================================
-# More schemas will be added in Week 2 & 3
+# Tool Result Models (Week 2)
 # ============================================================================
+
+
+class SentimentResult(BaseModel):
+    """Result from sentiment analysis."""
+
+    label: str  # 'positive', 'negative', 'neutral'
+    score: float = Field(..., ge=0.0, le=1.0)
+    scores: Dict[str, float]  # All class probabilities
+
+
+class EmotionResult(BaseModel):
+    """Result from emotion detection."""
+
+    emotion: str  # Primary emotion
+    confidence: float = Field(..., ge=0.0, le=1.0)
+    scores: Dict[str, float]  # All emotion scores
+
+
+class TopicResult(BaseModel):
+    """Result from topic extraction."""
+
+    topics: List[str]
+    relevance_scores: Dict[str, float]
+    primary_topic: str
+
+
+class Entity(BaseModel):
+    """Named entity."""
+
+    text: str
+    type: str  # Entity type
+    start: int
+    end: int
+    confidence: float = Field(..., ge=0.0, le=1.0)
+
+
+class EntityResult(BaseModel):
+    """Result from entity extraction."""
+
+    entities: List[Entity] = Field(default_factory=list)
+
+
+class KeyphraseResult(BaseModel):
+    """Result from keyphrase extraction."""
+
+    keyphrases: List[str]
+    scores: Dict[str, float]
+
+
+class CommentAnalysis(BaseModel):
+    """Complete analysis for single comment."""
+
+    comment_id: str
+    text: str
+    sentiment: SentimentResult
+    emotion: EmotionResult
+    topics: TopicResult
+    entities: EntityResult
+    keyphrases: KeyphraseResult
+    execution_time: float
+
+
+# ============================================================================
+# Agent 3: AnalysisOrchestrator Schemas
+# ============================================================================
+
+
+class AnalysisOrchestratorInput(BaseModel):
+    """Input for AnalysisOrchestratorAgent."""
+
+    comments: List[str] = Field(..., min_length=1)
+    batch_size: int = Field(default=32, ge=1, le=128)
+
+
+class TopicSummary(BaseModel):
+    """Summary of a topic."""
+
+    topic: str
+    count: int
+    avg_sentiment: float = Field(..., ge=-1.0, le=1.0)
+    sample_comments: List[str] = Field(default_factory=list, max_length=5)
+
+
+class EntitySummary(BaseModel):
+    """Summary of an entity."""
+
+    text: str
+    type: str
+    count: int
+    sentiment: float = Field(..., ge=-1.0, le=1.0)
+    contexts: List[str] = Field(default_factory=list, max_length=3)
+
+
+class AnalysisOrchestratorOutput(BaseModel):
+    """Output from AnalysisOrchestratorAgent."""
+
+    total_comments: int
+    sentiment_distribution: Dict[str, int]
+    emotion_distribution: Dict[str, int]
+    top_topics: List[TopicSummary]
+    entities: List[EntitySummary]
+    keyphrases: List[str]
+    individual_results: List[CommentAnalysis] = Field(default_factory=list)
+    execution_time: float
