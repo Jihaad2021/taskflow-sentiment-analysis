@@ -325,3 +325,36 @@ class ReportWriterOutput(BaseModel):
     word_count: int
     generation_time: float
     llm_cost: float
+
+
+# ============================================================================
+# Agent 7: ReportEvaluator Schemas
+# ============================================================================
+
+
+class EvaluationCriterion(BaseModel):
+    """Single evaluation criterion."""
+
+    score: float = Field(..., ge=0.0, le=100.0)
+    issues: List[str] = Field(default_factory=list)
+    critical: bool = False
+
+
+class ReportEvaluatorInput(BaseModel):
+    """Input for ReportEvaluatorAgent."""
+
+    report_text: str
+    original_data: AnalysisOrchestratorOutput
+    report_plan: ReportPlannerOutput
+
+
+class ReportEvaluatorOutput(BaseModel):
+    """Output from ReportEvaluatorAgent."""
+
+    status: str  # 'pass' or 'fail'
+    quality_score: float = Field(..., ge=0.0, le=100.0)
+    checks: Dict[str, EvaluationCriterion]
+    issues: List[str] = Field(default_factory=list)
+    should_regenerate: bool
+    feedback: Optional[str] = None
+    llm_cost: float = 0.0

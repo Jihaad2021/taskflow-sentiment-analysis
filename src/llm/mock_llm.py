@@ -1,5 +1,6 @@
 """Mock LLM for testing without API calls."""
 
+import json
 import re
 from typing import Any, Dict, Optional
 
@@ -58,6 +59,10 @@ class MockLLM(BaseLLM):
             column = match.group(1) if match else "unknown"
             return f'{{"column": "{column}", "reasoning": "Mock LLM selection"}}'
 
+        # For report evaluation
+        if "Evaluate the report" in prompt or "Evaluation Criteria" in prompt:
+            return self._generate_mock_evaluation()
+
         # Default JSON
         return '{"result": "mock response"}'
 
@@ -69,6 +74,28 @@ class MockLLM(BaseLLM):
             return self._generate_mock_report()
 
         return "This is a mock LLM response for testing purposes."
+
+    def _generate_mock_evaluation(self) -> str:
+        """Generate mock evaluation JSON."""
+        return json.dumps(
+            {
+                "overall_score": 85.0,
+                "should_regenerate": False,
+                "checks": {
+                    "completeness": {"score": 90.0, "issues": [], "critical": False},
+                    "factual_accuracy": {"score": 85.0, "issues": [], "critical": False},
+                    "coherence": {
+                        "score": 80.0,
+                        "issues": ["Minor flow issues"],
+                        "critical": False,
+                    },
+                    "actionability": {"score": 85.0, "issues": [], "critical": False},
+                    "hallucination": {"score": 95.0, "issues": [], "critical": False},
+                },
+                "issues": [],
+                "feedback": "Good report overall. Minor improvements needed in flow.",
+            }
+        )
 
     def _generate_mock_report(self) -> str:
         """Generate mock report in Markdown."""
