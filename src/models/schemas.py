@@ -86,6 +86,7 @@ class DataStats(BaseModel):
     missing_values: int
     duplicates: int
     empty_strings: int
+    spam_removed: int = 0  # ADD THIS
     avg_text_length: float
     min_text_length: int
     max_text_length: int
