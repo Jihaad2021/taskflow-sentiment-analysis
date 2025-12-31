@@ -4,11 +4,12 @@ uvicorn[standard]==0.24.0
 pydantic==2.5.0
 pydantic-settings==2.1.0
 
-# ML/NLP
+# ML/NLP (update versi)
 transformers==4.35.0
 torch==2.1.0
 sentencepiece==0.1.99
 sacremoses==0.1.1
+scikit-learn==1.3.2  # ADD - untuk clustering di TopicTool
 
 # Data processing
 pandas==2.1.3
