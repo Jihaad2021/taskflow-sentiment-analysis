@@ -227,3 +227,53 @@ def test_excessive_whitespace_removal(agent):
     for text in output.cleaned_data["comment"]:
         assert "  " not in text  # No double spaces
         assert text == text.strip()  # No leading/trailing
+
+
+def test_spam_detection(agent):
+    """Test spam comment removal."""
+    df = pd.DataFrame(
+        {
+            "comment": [
+                "Great product, very satisfied!",
+                "BUY NOW!!! CLICK HERE!!!",
+                "Visit http://spam.com now for FREE prizes!!!",
+                "Decent quality for the price",
+                "WINNER WINNER GET YOUR PRIZE NOW",
+                "$$$ Make money fast $$$",
+                "Normal comment here",
+            ]
+            * 3  # 21 rows
+        }
+    )
+
+    input_data = DataValidatorInput(dataframe=df, text_column="comment")
+    output = agent.execute(input_data)
+
+    # Check spam removed
+    assert output.stats.rows_after_cleaning < 21
+
+    # Check no spam in cleaned data
+    for text in output.cleaned_data["comment"]:
+        assert not agent._is_spam(text)
+
+
+def test_excessive_caps_as_spam(agent):
+    """Test that excessive caps is detected as spam."""
+    df = pd.DataFrame(
+        {
+            "comment": [
+                "THIS IS ALL CAPS SPAM MESSAGE",
+                "Normal comment with some CAPS",
+                "ANOTHER SPAM WITH ALL CAPS HERE",
+            ]
+            * 5
+        }
+    )
+
+    input_data = DataValidatorInput(dataframe=df, text_column="comment")
+    output = agent.execute(input_data)
+
+    # Should remove excessive caps
+    cleaned_texts = output.cleaned_data["comment"].tolist()
+    all_caps_count = sum(1 for t in cleaned_texts if t.isupper() and len(t) > 10)
+    assert all_caps_count == 0

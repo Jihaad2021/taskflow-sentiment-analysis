@@ -1,7 +1,7 @@
 """Data validation and cleaning agent."""
 
 import re
-from typing import List
+from typing import List, Tuple
 
 import pandas as pd
 from pydantic import BaseModel
@@ -17,6 +17,16 @@ from src.utils.exceptions import ValidationError
 
 class DataValidatorAgent(BaseAgent):
     """Validate and clean CSV data before analysis."""
+
+    # Spam patterns
+    SPAM_PATTERNS = [
+        r"(buy|click|visit|check)\s+(now|here|this)",
+        r"http.*\s.*http",  # Multiple URLs
+        r"(!!!){2,}",  # Excessive exclamation
+        r"(\$\$\$|€€€|£££)",  # Money symbols
+        r"(free|win|winner|prize).*now",
+        r"(viagra|cialis|pharmacy)",
+    ]
 
     def __init__(self, min_rows: int = 10, max_rows: int = 10000):
         """Initialize data validator.
@@ -136,7 +146,56 @@ class DataValidatorAgent(BaseAgent):
         if len(df) > self.max_rows:
             raise ValidationError(f"DataFrame has {len(df)} rows (maximum: {self.max_rows})")
 
-    def _clean_data(self, df: pd.DataFrame, text_column: str) -> tuple[pd.DataFrame, dict]:
+    def _is_spam(self, text: str) -> bool:
+        """Check if text is spam.
+
+        Args:
+            text: Text to check
+
+        Returns:
+            True if spam detected, False otherwise
+        """
+        text_lower = text.lower()
+
+        # Check spam patterns
+        for pattern in self.SPAM_PATTERNS:
+            if re.search(pattern, text_lower, re.IGNORECASE):
+                return True
+
+        # Check excessive caps (>70% uppercase)
+        if len(text) > 10:
+            caps_ratio = sum(1 for c in text if c.isupper()) / len(text)
+            if caps_ratio > 0.7:
+                return True
+
+        return False
+
+    def _detect_language(self, df: pd.DataFrame, text_column: str) -> str:
+        """Detect primary language in dataset.
+
+        Args:
+            df: DataFrame
+            text_column: Text column
+
+        Returns:
+            Language code or 'unknown'
+        """
+        # Simple heuristic: check for common English words
+        sample = df[text_column].head(20)
+        english_words = ["the", "is", "and", "to", "a", "of", "in", "for"]
+
+        english_count = 0
+        for text in sample:
+            text_lower = str(text).lower()
+            if any(word in text_lower for word in english_words):
+                english_count += 1
+
+        if english_count / len(sample) > 0.5:
+            return "en"
+
+        return "unknown"
+
+    def _clean_data(self, df: pd.DataFrame, text_column: str) -> Tuple[pd.DataFrame, dict]:
         """Clean the data.
 
         Args:
@@ -153,6 +212,7 @@ class DataValidatorAgent(BaseAgent):
             "duplicates_removed": 0,
             "empty_removed": 0,
             "short_removed": 0,
+            "spam_removed": 0,  # ADD THIS
         }
 
         original_len = len(df_clean)
@@ -174,7 +234,12 @@ class DataValidatorAgent(BaseAgent):
         df_clean = df_clean[df_clean[text_column].str.len() >= 3]
         stats["short_removed"] = before_short - len(df_clean)
 
-        # 5. Remove duplicates
+        # 5. Remove spam (ADD THIS SECTION)
+        before_spam = len(df_clean)
+        df_clean = df_clean[~df_clean[text_column].apply(self._is_spam)]
+        stats["spam_removed"] = before_spam - len(df_clean)
+
+        # 6. Remove duplicates (renumber from 5 to 6)
         before_dup = len(df_clean)
         df_clean = df_clean.drop_duplicates(subset=[text_column])
         stats["duplicates_removed"] = before_dup - len(df_clean)
@@ -242,6 +307,7 @@ class DataValidatorAgent(BaseAgent):
             avg_text_length=float(text_lengths.mean()),
             min_text_length=int(text_lengths.min()),
             max_text_length=int(text_lengths.max()),
+            # ADD THIS (but need to update schema first)
         )
 
     def _determine_status(self, stats: DataStats, issues: List[str], warnings: List[str]) -> str:
