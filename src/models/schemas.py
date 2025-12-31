@@ -212,3 +212,35 @@ class AnalysisOrchestratorOutput(BaseModel):
     keyphrases: List[str]
     individual_results: List[CommentAnalysis] = Field(default_factory=list)
     execution_time: float
+
+
+# ============================================================================
+# Agent 4: PrePromptEvaluator Schemas
+# ============================================================================
+
+
+class QualityCheck(BaseModel):
+    """Individual quality check result."""
+
+    name: str
+    passed: bool
+    score: float = Field(..., ge=0.0, le=100.0)
+    message: str
+
+
+class PrePromptEvaluatorInput(BaseModel):
+    """Input for PrePromptEvaluatorAgent."""
+
+    tool_results: AnalysisOrchestratorOutput
+
+
+class PrePromptEvaluatorOutput(BaseModel):
+    """Output from PrePromptEvaluatorAgent."""
+
+    status: str  # 'pass', 'warning', 'fail'
+    quality_score: float = Field(..., ge=0.0, le=100.0)
+    checks: List[QualityCheck]
+    issues: List[str] = Field(default_factory=list)
+    recommendations: List[str] = Field(default_factory=list)
+    should_proceed: bool
+    metadata: Dict[str, Any] = Field(default_factory=dict)
