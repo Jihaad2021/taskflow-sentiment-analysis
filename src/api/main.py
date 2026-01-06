@@ -5,6 +5,8 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse  # Add this
+from fastapi.staticfiles import StaticFiles  # Add this
 
 from src.api.routes import router
 from src.api.storage import storage
@@ -34,11 +36,14 @@ app = FastAPI(
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, restrict this
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Mount static files
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # Include routes
 app.include_router(router, prefix="/api")
@@ -46,13 +51,8 @@ app.include_router(router, prefix="/api")
 
 @app.get("/")
 async def root():
-    """Root endpoint."""
-    return {
-        "message": "TaskFlow Sentiment Analysis API",
-        "version": "1.0.0",
-        "docs": "/docs",
-        "health": "/api/health",
-    }
+    """Root endpoint - serve web UI."""
+    return FileResponse("static/index.html")
 
 
 @app.get("/api/health")

@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TaskFlow - Sentiment Analysis</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header>
+            <h1>📊 TaskFlow</h1>
+            <p class="subtitle">Professional Sentiment Analysis Reports</p>
+        </header>
+
+        <!-- Main Content -->
+        <main>
+            <!-- Step 1: Upload -->
+            <section id="upload-section" class="card">
+                <h2>Step 1: Upload CSV File</h2>
+                <p>Upload your CSV file containing customer reviews, comments, or feedback.</p>
+                
+                <div class="upload-area" id="upload-area">
+                    <input type="file" id="file-input" accept=".csv" hidden>
+                    <div class="upload-content">
+                        <div class="upload-icon">📁</div>
+                        <p class="upload-text">Click to upload or drag & drop CSV file</p>
+                        <p class="upload-hint">Maximum file size: 10MB</p>
+                    </div>
+                </div>
+
+                <div id="file-info" class="file-info hidden">
+                    <p><strong>File:</strong> <span id="filename"></span></p>
+                    <p><strong>Rows:</strong> <span id="rows"></span></p>
+                    <p><strong>Text Column:</strong> <span id="text-column"></span></p>
+                </div>
+            </section>
+
+            <!-- Step 2: Configure -->
+            <section id="config-section" class="card hidden">
+                <h2>Step 2: Configure Report</h2>
+                
+                <div class="form-group">
+                    <label for="report-type">Report Type:</label>
+                    <select id="report-type">
+                        <option value="executive">Executive Summary (3-5 pages)</option>
+                        <option value="marketing">Marketing Analysis (5-7 pages)</option>
+                        <option value="product">Product Insights (7-10 pages)</option>
+                        <option value="customer_service">Customer Service (5-8 pages)</option>
+                        <option value="comprehensive">Comprehensive Report (15-20 pages)</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="text-column-select">Text Column (optional):</label>
+                    <select id="text-column-select">
+                        <option value="">Auto-detect</option>
+                    </select>
+                    <p class="hint">Leave as "Auto-detect" if unsure</p>
+                </div>
+
+                <button id="start-btn" class="btn btn-primary">
+                    Generate Report
+                </button>
+            </section>
+
+            <!-- Step 3: Processing -->
+            <section id="processing-section" class="card hidden">
+                <h2>Step 3: Processing</h2>
+                
+                <div class="progress-container">
+                    <div class="progress-bar">
+                        <div id="progress-fill" class="progress-fill"></div>
+                    </div>
+                    <p id="progress-text" class="progress-text">0%</p>
+                </div>
+
+                <p id="stage-text" class="stage-text">Initializing...</p>
+                
+                <div class="spinner"></div>
+            </section>
+
+            <!-- Step 4: Results -->
+            <section id="results-section" class="card hidden">
+                <h2>✅ Report Ready!</h2>
+                
+                <div class="results-info">
+                    <div class="stat">
+                        <span class="stat-label">Quality Score:</span>
+                        <span id="quality-score" class="stat-value">-</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">Word Count:</span>
+                        <span id="word-count" class="stat-value">-</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">Processing Time:</span>
+                        <span id="processing-time" class="stat-value">-</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">Cost:</span>
+                        <span id="cost" class="stat-value">-</span>
+                    </div>
+                </div>
+
+                <div class="action-buttons">
+                    <button id="download-md-btn" class="btn btn-primary">
+                        📄 Download Markdown
+                    </button>
+                    <button id="download-pdf-btn" class="btn btn-secondary" disabled>
+                        📑 Download PDF (Coming Soon)
+                    </button>
+                    <button id="new-report-btn" class="btn btn-secondary">
+                        🔄 New Report
+                    </button>
+                </div>
+            </section>
+
+            <!-- Error Section -->
+            <section id="error-section" class="card error hidden">
+                <h2>❌ Error</h2>
+                <p id="error-message"></p>
+                <button id="retry-btn" class="btn btn-secondary">Try Again</button>
+            </section>
+        </main>
+
+        <!-- Footer -->
+        <footer>
+            <p>TaskFlow Sentiment Analysis v1.0 | 
+               <a href="/docs" target="_blank">API Docs</a> | 
+               <a href="/api/health" target="_blank">Health Check</a>
+            </p>
+        </footer>
+    </div>
+
+    <script src="/static/js/app.js"></script>
+</body>
+</html>

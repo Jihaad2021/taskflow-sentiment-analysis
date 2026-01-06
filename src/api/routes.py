@@ -36,24 +36,64 @@ router = APIRouter()
 
 @router.post("/upload", response_model=UploadResponse)
 async def upload_csv(file: UploadFile = File(...)):
-    """Upload CSV file for analysis.
+    """Upload CSV file for analysis."""
 
-    Args:
-        file: CSV file (max 10MB)
-
-    Returns:
-        UploadResponse with upload_id and preview
-    """
     # Validate file type
     if not file.filename.endswith(".csv"):
         raise HTTPException(status_code=400, detail="Only CSV files are supported")
 
-    # Read file
+    # Read file with robust error handling
     try:
         contents = await file.read()
-        df = pd.read_csv(io.BytesIO(contents))
+
+        # Try multiple parsing strategies
+        df = None
+        errors = []
+
+        # Strategy 1: Normal comma delimiter
+        try:
+            df = pd.read_csv(io.BytesIO(contents))
+        except Exception as e:
+            errors.append(f"Comma: {str(e)[:50]}")
+
+        # Strategy 2: Semicolon delimiter
+        if df is None:
+            try:
+                df = pd.read_csv(io.BytesIO(contents), sep=";")
+            except Exception as e:
+                errors.append(f"Semicolon: {str(e)[:50]}")
+
+        # Strategy 3: Tab delimiter
+        if df is None:
+            try:
+                df = pd.read_csv(io.BytesIO(contents), sep="\t")
+            except Exception as e:
+                errors.append(f"Tab: {str(e)[:50]}")
+
+        # Strategy 4: Skip bad lines
+        if df is None:
+            try:
+                df = pd.read_csv(io.BytesIO(contents), on_bad_lines="skip", encoding="utf-8")
+            except Exception as e:
+                errors.append(f"Skip bad lines: {str(e)[:50]}")
+
+        # Strategy 5: Engine python (more flexible)
+        if df is None:
+            try:
+                df = pd.read_csv(io.BytesIO(contents), engine="python", on_bad_lines="skip")
+            except Exception as e:
+                errors.append(f"Python engine: {str(e)[:50]}")
+
+        if df is None or len(df) == 0:
+            raise ValueError(
+                "Could not parse CSV file. Tried multiple formats but all failed. "
+                "Please ensure your CSV has consistent formatting."
+            )
+
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Failed to read CSV: {str(e)}")
+        raise HTTPException(
+            status_code=400, detail=f"Failed to read CSV: {str(e)}. Please check file format."
+        )
 
     # Validate data
     if len(df) < 10:
@@ -79,8 +119,13 @@ async def upload_csv(file: UploadFile = File(...)):
         filename=file.filename, dataframe=df, detected_column=detected_column
     )
 
-    # Create preview (first 5 rows) - convert all to strings
-    preview_df = df.head(5).astype(str)  # Convert all to string
+    # Create preview (first 5 rows) - CLEAN FOR JSON
+    preview_df = df.head(5).copy()
+
+    # Replace NaN/Infinity with None for JSON serialization
+    preview_df = preview_df.replace({float("nan"): None, float("inf"): None, float("-inf"): None})
+
+    # Convert to dict
     preview = preview_df.to_dict("records")
 
     return UploadResponse(
