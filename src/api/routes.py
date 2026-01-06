@@ -24,6 +24,7 @@ from src.api.models import (
     UploadResponse,
 )
 from src.api.storage import storage
+from src.export.pdf_generator import markdown_to_pdf
 from src.models.schemas import ColumnDetectorInput
 
 router = APIRouter()
@@ -261,8 +262,32 @@ async def download_report(job_id: str, format: str = "md"):
             media_type="text/markdown",
             headers={"Content-Disposition": f"attachment; filename=report_{job_id}.md"},
         )
+
     elif format == "pdf":
-        # TODO: Generate PDF
-        raise HTTPException(status_code=501, detail="PDF generation not yet implemented")
+        # Generate PDF
+        try:
+            # Prepare metadata
+            metadata = {
+                "quality_score": job["result"].get("quality_score"),
+                "word_count": job["result"].get("word_count"),
+                "total_time": job["result"].get("total_time"),
+                "cost": f"{job['result'].get('cost', 0):.4f}",
+            }
+
+            # Convert to PDF
+            pdf_bytes = markdown_to_pdf(
+                report_text, title="TaskFlow Sentiment Analysis Report", metadata=metadata
+            )
+
+            # Return PDF
+            return StreamingResponse(
+                io.BytesIO(pdf_bytes),
+                media_type="application/pdf",
+                headers={"Content-Disposition": f"attachment; filename=report_{job_id}.pdf"},
+            )
+
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"PDF generation failed: {str(e)}")
+
     else:
         raise HTTPException(status_code=400, detail="Invalid format. Use 'md' or 'pdf'")

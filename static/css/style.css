@@ -217,6 +217,11 @@ header h1 {
     border-top: 5px solid #667eea;
     border-radius: 50%;
     animation: spin 1s linear infinite;
+    display: none; /* ADD THIS - hide by default */
+}
+
+.spinner.active {
+    display: block; /* Show when active */
 }
 
 @keyframes spin {

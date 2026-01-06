@@ -75,6 +75,7 @@ function setupEventListeners() {
     // Buttons
     startBtn.addEventListener('click', startAnalysis);
     downloadMdBtn.addEventListener('click', downloadMarkdown);
+    downloadPdfBtn.addEventListener('click', downloadPdf);
     newReportBtn.addEventListener('click', reset);
     retryBtn.addEventListener('click', reset);
 }
@@ -101,8 +102,6 @@ async function handleFile(file) {
 
     // Upload file
     try {
-        showLoading('Uploading file...');
-
         const formData = new FormData();
         formData.append('file', file);
 
@@ -113,14 +112,20 @@ async function handleFile(file) {
 
         if (!response.ok) {
             const error = await response.json();
-            throw new Error(error.detail || 'Upload failed');
+            
+            let errorMsg = error.detail || 'Upload failed';
+            if (errorMsg.includes('Expected') && errorMsg.includes('fields')) {
+                errorMsg = 'CSV format error: Inconsistent number of columns. Please check your CSV file.';
+            }
+            
+            throw new Error(errorMsg);
         }
 
         const data = await response.json();
         handleUploadSuccess(data);
 
     } catch (error) {
-        showError(`Upload failed: ${error.message}`);
+        showError(error.message);
     }
 }
 
@@ -164,7 +169,6 @@ async function startAnalysis() {
             max_regenerations: 3
         };
 
-        // Add text_column if manually selected
         if (textColumnValue) {
             requestBody.text_column = textColumnValue;
         }
@@ -185,9 +189,20 @@ async function startAnalysis() {
         const data = await response.json();
         jobId = data.job_id;
 
+        console.log('✅ Job started:', jobId);
+
         // Hide config, show processing
         configSection.classList.add('hidden');
         processingSection.classList.remove('hidden');
+        
+        console.log('✅ Processing section shown');
+
+        // Reset progress
+        progressFill.style.width = '0%';
+        progressText.textContent = '0%';
+        stageText.textContent = 'Queued...';
+        
+        console.log('✅ Progress reset');
 
         // Start polling
         startPolling();
@@ -200,11 +215,13 @@ async function startAnalysis() {
 }
 
 function startPolling() {
-    pollInterval = setInterval(checkJobStatus, 2000); // Poll every 2 seconds
-    checkJobStatus(); // Check immediately
+    console.log('🔄 Starting polling...');
+    pollInterval = setInterval(checkJobStatus, 1000);
+    checkJobStatus();
 }
 
 function stopPolling() {
+    console.log('⏸️  Stopping polling...');
     if (pollInterval) {
         clearInterval(pollInterval);
         pollInterval = null;
@@ -220,11 +237,11 @@ async function checkJobStatus() {
         }
 
         const data = await response.json();
+        
+        console.log('📊 Progress:', data.progress, '- Stage:', data.current_stage);
 
-        // Update progress
         updateProgress(data.progress, data.current_stage);
 
-        // Check status
         if (data.status === 'completed') {
             stopPolling();
             await loadReport();
@@ -234,6 +251,7 @@ async function checkJobStatus() {
         }
 
     } catch (error) {
+        console.error('❌ Poll error:', error);
         stopPolling();
         showError(`Failed to check status: ${error.message}`);
     }
@@ -301,6 +319,37 @@ async function downloadMarkdown() {
     }
 }
 
+async function downloadPdf() {
+    try {
+        downloadPdfBtn.disabled = true;
+        downloadPdfBtn.textContent = 'Generating PDF...';
+
+        const response = await fetch(`${API_BASE}/report/${jobId}/download?format=pdf`);
+
+        if (!response.ok) {
+            throw new Error('PDF generation failed');
+        }
+
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `report_${jobId}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+
+        downloadPdfBtn.disabled = false;
+        downloadPdfBtn.textContent = '📑 Download PDF';
+
+    } catch (error) {
+        downloadPdfBtn.disabled = false;
+        downloadPdfBtn.textContent = '📑 Download PDF';
+        showError(`PDF download failed: ${error.message}`);
+    }
+}
+
 function showError(message) {
     errorMessage.textContent = message;
     
@@ -311,19 +360,11 @@ function showError(message) {
     errorSection.classList.remove('hidden');
 }
 
-function showLoading(message) {
-    stageText.textContent = message;
-    uploadSection.classList.add('hidden');
-    processingSection.classList.remove('hidden');
-}
-
 function reset() {
-    // Reset state
     uploadId = null;
     jobId = null;
     stopPolling();
 
-    // Reset UI
     fileInput.value = '';
     fileInfo.classList.add('hidden');
     uploadArea.style.display = 'block';
