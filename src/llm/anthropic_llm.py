@@ -13,14 +13,15 @@ from src.utils.logger import setup_logger
 class ClaudeLLM(BaseLLM):
     """Claude LLM implementation using Anthropic API."""
 
-    # Pricing per million tokens (as of Dec 2024)
+    # Pricing per million tokens (as of Jan 2025)
     PRICING = {
+        "claude-sonnet-4-20250514": {"input": 3.00, "output": 15.00},  # NEW
         "claude-3-5-sonnet-20241022": {"input": 3.00, "output": 15.00},
         "claude-3-5-sonnet-20240620": {"input": 3.00, "output": 15.00},
         "claude-3-opus-20240229": {"input": 15.00, "output": 75.00},
     }
 
-    def __init__(self, api_key: str, model: str = "claude-3-5-sonnet-20241022"):
+    def __init__(self, api_key: str, model: str = "claude-sonnet-4-20250514"):  # CHANGE DEFAULT
         """Initialize Claude LLM.
 
         Args:

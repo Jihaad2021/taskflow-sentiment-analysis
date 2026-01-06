@@ -26,7 +26,7 @@ cd taskflow-sentiment-analysis
 
 # Create virtual environment
 python -m venv venv
-source venv/bin/activate  # Linux/Mac
+source .taskflow-venv/bin/activate  # Linux/Mac
 # venv\Scripts\activate   # Windows
 
 # Install dependencies
