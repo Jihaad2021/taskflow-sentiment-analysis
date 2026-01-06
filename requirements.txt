@@ -31,3 +31,10 @@ tiktoken==0.8.0
 # Report generation (Week 4)
 # weasyprint==60.1
 # markdown2==2.4.10
+
+# FastAPI & related
+fastapi==0.115.5
+uvicorn[standard]==0.32.1
+python-multipart==0.0.20
+aiofiles==24.1.0
+python-jose[cryptography]==3.3.0
