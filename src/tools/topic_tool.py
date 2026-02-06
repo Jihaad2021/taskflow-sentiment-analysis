@@ -1,59 +1,27 @@
-"""Topic extraction tool using Sentence-BERT + clustering."""
+"""Topic extraction tool using Sentence-BERT."""
 
 from typing import Dict
-
-from transformers import AutoModel, AutoTokenizer
+from sentence_transformers import SentenceTransformer
 
 from src.tools.base import BaseTool
 
 
 class TopicTool(BaseTool):
-    """Extract topics using sentence embeddings + TF-IDF."""
+    """Extract topics using sentence embeddings."""
 
     def _load_model(self):
         """Load Sentence-BERT model."""
         self.logger.info(f"Loading topic model: {self.model_name}")
 
-        self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
-        model = AutoModel.from_pretrained(self.model_name)
-
-        # Move to device
-        model = model.to(self.device)
-        model.eval()
-
+        # Use SentenceTransformer instead of AutoModel
+        model = SentenceTransformer(self.model_name)
+        
+        # Move to device (SentenceTransformer handles this differently)
+        if self.device == "cuda":
+            model = model.to(self.device)
+        
         self.logger.info("Topic model loaded successfully")
         return model
-
-    def _mean_pooling(self, model_output, attention_mask):
-        """Mean pooling for sentence embeddings."""
-        import torch
-
-        token_embeddings = model_output[0]
-        input_mask_expanded = attention_mask.unsqueeze(-1).expand(token_embeddings.size()).float()
-        return torch.sum(token_embeddings * input_mask_expanded, 1) / torch.clamp(
-            input_mask_expanded.sum(1), min=1e-9
-        )
-
-    def _get_embedding(self, text: str):
-        """Get sentence embedding."""
-        import torch
-
-        # Tokenize
-        encoded_input = self.tokenizer(
-            text, padding=True, truncation=True, max_length=512, return_tensors="pt"
-        )
-
-        # Move to device
-        encoded_input = {k: v.to(self.device) for k, v in encoded_input.items()}
-
-        # Compute embeddings
-        with torch.no_grad():
-            model_output = self.model(**encoded_input)
-
-        # Mean pooling
-        sentence_embeddings = self._mean_pooling(model_output, encoded_input["attention_mask"])
-
-        return sentence_embeddings.cpu().numpy()[0]
 
     def analyze(self, text: str) -> Dict:
         """Extract topics from text.
@@ -72,10 +40,15 @@ class TopicTool(BaseTool):
         words = text.lower().split()
 
         # Simple keyword extraction (words > 4 chars, not common words)
-        stop_words = {"this", "that", "with", "from", "have", "been", "were", "they", "their"}
+        stop_words = {
+            "this", "that", "with", "from", "have", "been", "were", 
+            "they", "their", "the", "and", "for", "are", "but"
+        }
 
         keywords = [
-            word.strip(".,!?;:") for word in words if len(word) > 4 and word not in stop_words
+            word.strip(".,!?;:\"'") 
+            for word in words 
+            if len(word) > 4 and word not in stop_words
         ]
 
         # Get unique keywords

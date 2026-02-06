@@ -25,14 +25,7 @@ class SentimentTool(BaseTool):
         return model
 
     def analyze(self, text: str) -> Dict:
-        """Analyze sentiment of text.
-
-        Args:
-            text: Input text
-
-        Returns:
-            Dictionary with sentiment results
-        """
+        """Analyze sentiment of text."""
         # Tokenize
         inputs = self.tokenizer(
             text, return_tensors="pt", truncation=True, max_length=512, padding=True
@@ -52,9 +45,19 @@ class SentimentTool(BaseTool):
         # Get scores
         scores = probs[0].cpu().numpy()
 
-        # Model outputs: [negative, neutral, positive]
-        labels = ["negative", "neutral", "positive"]
-        label_scores = {labels[i]: float(scores[i]) for i in range(len(labels))}
+        # CHECK HOW MANY LABELS THE MODEL HAS
+        num_labels = len(scores)
+        
+        if num_labels == 2:
+            # DistilBERT SST-2: [NEGATIVE, POSITIVE]
+            labels = ["negative", "positive"]
+            label_scores = {labels[i]: float(scores[i]) for i in range(2)}
+            # Add neutral as middle ground
+            label_scores["neutral"] = 0.0
+        else:
+            # 3-class model: [negative, neutral, positive]
+            labels = ["negative", "neutral", "positive"]
+            label_scores = {labels[i]: float(scores[i]) for i in range(3)}
 
         # Get top prediction
         top_idx = scores.argmax()
