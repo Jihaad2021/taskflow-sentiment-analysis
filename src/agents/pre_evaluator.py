@@ -238,16 +238,21 @@ class PrePromptEvaluatorAgent(BaseAgent):
                 name="Confidence Check", passed=False, score=0.0, message="No results to evaluate"
             )
 
-        # Calculate average sentiment confidence
+        # Calculate average sentiment confidence (ALWAYS available)
         sentiment_confidences = [r.sentiment.score for r in results.individual_results]
         avg_sentiment_conf = sum(sentiment_confidences) / len(sentiment_confidences)
 
-        # Calculate average emotion confidence
-        emotion_confidences = [r.emotion.confidence for r in results.individual_results]
-        avg_emotion_conf = sum(emotion_confidences) / len(emotion_confidences)
+        # Calculate average emotion confidence (SKIP if all zeros)
+        emotion_confidences = [
+            r.emotion.confidence for r in results.individual_results if r.emotion.confidence > 0
+        ]
 
-        # Overall average
-        avg_confidence = (avg_sentiment_conf + avg_emotion_conf) / 2
+        if emotion_confidences:
+            avg_emotion_conf = sum(emotion_confidences) / len(emotion_confidences)
+            avg_confidence = (avg_sentiment_conf + avg_emotion_conf) / 2
+        else:
+            # Only sentiment available
+            avg_confidence = avg_sentiment_conf
 
         score = avg_confidence * 100
         passed = avg_confidence >= self.min_confidence
@@ -256,7 +261,9 @@ class PrePromptEvaluatorAgent(BaseAgent):
             name="Confidence Check",
             passed=passed,
             score=score,
-            message=f"Average confidence: {avg_confidence*100:.1f}%",
+            message=f"Average confidence: {avg_confidence*100:.1f}% (sentiment only)"
+            if not emotion_confidences
+            else f"Average confidence: {avg_confidence*100:.1f}%",
         )
 
     def _calculate_quality_score(self, checks: List[QualityCheck]) -> float:

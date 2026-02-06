@@ -187,40 +187,46 @@ class ColumnDetectorAgent(BaseAgent):
         if user_hint and str(col).lower() == user_hint.lower():
             return 1.0, "Exact match with user hint"
 
-        # Check 2: Data type - MUST be object/string
-        if df[col].dtype != "object":
-            return 0.0, "Non-string data type"  # Changed from 0.1 to 0.0
+        # Check 2: Try to get string data
+        try:
+            sample = df[col].dropna().head(100)
+            if len(sample) == 0:
+                return 0.0, "Column is empty"
 
-        # Check 3: Column name matches keywords
+            # Convert to string
+            sample_str = sample.astype(str)
+        except:
+            return 0.0, "Cannot process column data"
+
+        # Check 3: Column name matches keywords (HIGHEST WEIGHT)
         col_lower = str(col).lower()
         for keyword in self.TEXT_COLUMN_KEYWORDS:
             if keyword in col_lower:
-                score += 0.4
+                score += 0.5  # Increased from 0.4
                 reasons.append(f"Column name contains '{keyword}'")
                 break
 
-        # Check 4: String data type
-        score += 0.2
-        reasons.append("String/object data type")
+        # Check 4: Average text length
+        avg_length = sample_str.str.len().mean()
 
-        # Check 5: Average text length
-        sample = df[col].dropna().head(100)
-        if len(sample) > 0:
-            avg_length = sample.astype(str).str.len().mean()
+        if avg_length > 50:  # Long text = likely comments
+            score += 0.3
+            reasons.append(f"Long average text length ({avg_length:.0f} chars)")
+        elif avg_length > 20:  # Medium text
+            score += 0.2
+            reasons.append(f"Medium text length ({avg_length:.0f} chars)")
+        elif avg_length > 10:  # Short but possible
+            score += 0.1
+            reasons.append(f"Short text length ({avg_length:.0f} chars)")
 
-            if avg_length > 50:  # Typical comments are longer
-                score += 0.3
-                reasons.append(f"Long average text length ({avg_length:.0f} chars)")
-            elif avg_length > 20:
-                score += 0.15
-                reasons.append(f"Medium text length ({avg_length:.0f} chars)")
-
-        # Check 6: Contains spaces (sentences vs single words)
-        if len(sample) > 0:
-            has_spaces = sample.astype(str).str.contains(" ").mean()
-            if has_spaces > 0.7:
-                score += 0.1
-                reasons.append("Contains multi-word text")
+        # Check 5: Contains spaces (sentences vs single words)
+        has_spaces = sample_str.str.contains(" ", regex=False).mean()
+        if has_spaces > 0.7:  # Most entries have spaces
+            score += 0.2
+            reasons.append(f"Multi-word text ({has_spaces*100:.0f}%)")
+        elif has_spaces > 0.3:
+            score += 0.1
+            reasons.append(f"Some multi-word text ({has_spaces*100:.0f}%)")
 
         # Cap score at 1.0
         score = min(score, 1.0)

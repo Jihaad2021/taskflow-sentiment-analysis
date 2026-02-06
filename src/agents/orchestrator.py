@@ -37,25 +37,49 @@ class AnalysisOrchestratorAgent(BaseAgent):
         Args:
             device: Device for models ('cpu' or 'cuda')
         """
-        from src.models.schemas import AgentConfig
+        from src.models.schemas import AgentConfig, ToolConfig
 
         super().__init__(AgentConfig(name="AnalysisOrchestratorAgent"))
 
         self.device = device
 
+        # Load config from .env
+        config = ToolConfig()
+
         # Initialize tools
         self.logger.info("Initializing analysis tools...")
-        self.sentiment_tool = SentimentTool(
-            "cardiffnlp/twitter-roberta-base-sentiment-latest", device=device
-        )
-        self.emotion_tool = EmotionTool(
-            "j-hartmann/emotion-english-distilroberta-base", device=device
-        )
-        self.topic_tool = TopicTool("sentence-transformers/all-MiniLM-L6-v2", device=device)
-        self.entity_tool = EntityTool("dslim/bert-base-NER", device=device)
-        self.keyphrase_tool = KeyphraseTool(
-            "ml6team/keyphrase-extraction-distilbert-inspec", device=device
-        )
+
+        # Sentiment tool (always)
+        self.sentiment_tool = SentimentTool(config.sentiment_model, device=device)
+
+        # Topic tool (always)
+        self.topic_tool = TopicTool(config.topic_model, device=device)
+
+        # Entity tool (always)
+        self.entity_tool = EntityTool(config.entity_model, device=device)
+
+        # Emotion tool (optional - skip if None)
+        if config.emotion_model:
+            try:
+                self.emotion_tool = EmotionTool(config.emotion_model, device=device)
+            except Exception as e:
+                self.logger.warning(f"Emotion tool failed to load: {e}")
+                self.emotion_tool = None
+        else:
+            self.logger.info("Emotion tool skipped (not configured)")
+            self.emotion_tool = None
+
+        # Keyphrase tool (optional - skip if None)
+        if config.keyphrase_model:
+            try:
+                self.keyphrase_tool = KeyphraseTool(config.keyphrase_model, device=device)
+            except Exception as e:
+                self.logger.warning(f"Keyphrase tool failed to load: {e}")
+                self.keyphrase_tool = None
+        else:
+            self.logger.info("Keyphrase tool skipped (not configured)")
+            self.keyphrase_tool = None
+
         self.logger.info("All tools initialized successfully")
 
     def execute(self, input_data: BaseModel) -> BaseModel:
@@ -113,12 +137,23 @@ class AnalysisOrchestratorAgent(BaseAgent):
         for i, comment in enumerate(comments):
             start = time.time()
 
-            # Run all 5 tools
+            # Run core tools (always)
             sentiment = self.sentiment_tool.analyze(comment)
-            emotion = self.emotion_tool.analyze(comment)
             topics = self.topic_tool.analyze(comment)
             entities = self.entity_tool.analyze(comment)
-            keyphrases = self.keyphrase_tool.analyze(comment)
+
+            # Run optional tools (if available)
+            if self.emotion_tool:
+                emotion = self.emotion_tool.analyze(comment)
+            else:
+                # Default emotion if tool not available
+                emotion = {"emotion": "neutral", "confidence": 0.0, "scores": {"neutral": 1.0}}
+
+            if self.keyphrase_tool:
+                keyphrases = self.keyphrase_tool.analyze(comment)
+            else:
+                # Default keyphrases if tool not available
+                keyphrases = {"keyphrases": [], "scores": {}}
 
             exec_time = time.time() - start
 
