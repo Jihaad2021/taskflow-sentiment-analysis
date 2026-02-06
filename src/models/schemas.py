@@ -1,7 +1,7 @@
 """Pydantic schemas for data validation."""
 
 from typing import Any, Dict, List, Optional
-
+import os
 from pydantic import BaseModel, Field
 
 # ============================================================================
@@ -14,19 +14,39 @@ class AgentConfig(BaseModel):
 
     name: str
     log_level: str = "INFO"
-
+    version: str = "1.0.0"
+    enable_metrics: bool = True 
+    enable_circuit_breaker: bool = False  
 
 class ToolConfig(BaseModel):
     """Configuration for analysis tools."""
 
-    sentiment_model: str = "cardiffnlp/twitter-roberta-base-sentiment-latest"
-    emotion_model: str = "j-hartmann/emotion-english-distilroberta-base"
-    topic_model: str = "sentence-transformers/all-MiniLM-L6-v2"
-    entity_model: str = "dslim/bert-base-NER"
-    keyphrase_model: str = "ml6team/keyphrase-extraction-distilbert-inspec"
-    device: str = "cpu"
-    batch_size: int = Field(default=32, ge=1, le=128)
-
+    sentiment_model: str = os.getenv(
+        "SENTIMENT_MODEL", 
+        "distilbert-base-uncased-finetuned-sst-2-english"
+    )
+    emotion_model: str = os.getenv(
+        "EMOTION_MODEL",
+        "j-hartmann/emotion-english-distilroberta-base"
+    )
+    topic_model: str = os.getenv(
+        "TOPIC_MODEL",
+        "all-MiniLM-L6-v2"
+    )
+    entity_model: str = os.getenv(
+        "ENTITY_MODEL",
+        "dslim/bert-base-NER"
+    )
+    keyphrase_model: str = os.getenv(
+        "KEYPHRASE_MODEL",
+        "ml6team/keyphrase-extraction-distilbert-inspec"
+    )
+    device: str = os.getenv("DEVICE", "cpu")
+    batch_size: int = Field(
+        default=int(os.getenv("BATCH_SIZE", "32")),
+        ge=1,
+        le=128
+    )
 
 # ============================================================================
 # Agent 1: ColumnDetector Schemas (Week 1 Day 3-4)
