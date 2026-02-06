@@ -1040,7 +1040,7 @@ in the Software without restriction...
 
 If you find this project useful, please consider giving it a star! ⭐
 
-[![Star History Chart](https://api.star-history.com/svg?repos=yourusername/taskflow-sentiment-analysis&type=Date)](https://star-history.com/#yourusername/taskflow-sentiment-analysis&Date)
+[![Star History Chart](https://api.star-history.com/svg?repos=Jihaad2021/taskflow-sentiment-analysis&type=Date)](https://star-history.com/#Jihaad2021/taskflow-sentiment-analysis&Date)
 
 ---
 
