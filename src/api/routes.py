@@ -266,6 +266,12 @@ async def download_report(job_id: str, format: str = "md"):
     elif format == "pdf":
         # Generate PDF
         try:
+            import traceback  # ADD THIS
+            from src.utils.logger import setup_logger  # ADD THIS
+            
+            logger = setup_logger("PDFDownload")  # ADD THIS
+            logger.info(f"Generating PDF for job {job_id}")  # ADD THIS
+            
             # Prepare metadata
             metadata = {
                 "quality_score": job["result"].get("quality_score"),
@@ -273,6 +279,9 @@ async def download_report(job_id: str, format: str = "md"):
                 "total_time": job["result"].get("total_time"),
                 "cost": f"{job['result'].get('cost', 0):.4f}",
             }
+            
+            logger.info(f"Metadata: {metadata}")  # ADD THIS
+            logger.info(f"Report text length: {len(report_text)}")  # ADD THIS
 
             # Convert to PDF
             pdf_bytes = markdown_to_pdf(
@@ -287,7 +296,9 @@ async def download_report(job_id: str, format: str = "md"):
             )
 
         except Exception as e:
+            logger.error(f"PDF generation failed: {str(e)}")  # ADD THIS
+            logger.error(traceback.format_exc())  # ADD THIS - FULL STACK TRACE
             raise HTTPException(status_code=500, detail=f"PDF generation failed: {str(e)}")
-
+        
     else:
         raise HTTPException(status_code=400, detail="Invalid format. Use 'md' or 'pdf'")

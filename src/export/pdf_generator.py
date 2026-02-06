@@ -141,9 +141,24 @@ def markdown_to_pdf(
             story.append(Paragraph(f"<b>{text}</b>", styles["Normal"]))
         # Regular paragraph
         else:
-            # Clean markdown syntax
-            text = line.replace("**", "<b>").replace("**", "</b>")
-            text = text.replace("*", "<i>").replace("*", "</i>")
+            # Clean markdown syntax - FIX THE REGEX
+            text = line
+            
+            # Replace **bold** with <b>bold</b> (proper closing tag)
+            import re
+            # Match **text** and replace with <b>text</b>
+            text = re.sub(r'\*\*([^*]+)\*\*', r'<b>\1</b>', text)
+            
+            # Match *italic* with <i>italic</i>
+            text = re.sub(r'\*([^*]+)\*', r'<i>\1</i>', text)
+            
+            # Escape special XML characters
+            text = text.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+            
+            # But restore our HTML tags
+            text = text.replace('&lt;b&gt;', '<b>').replace('&lt;/b&gt;', '</b>')
+            text = text.replace('&lt;i&gt;', '<i>').replace('&lt;/i&gt;', '</i>')
+            
             story.append(Paragraph(text, styles["Normal"]))
             story.append(Spacer(1, 0.05 * inch))
 
