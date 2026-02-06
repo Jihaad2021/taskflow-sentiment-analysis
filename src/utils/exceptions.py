@@ -55,10 +55,12 @@ class TimeoutError(TaskFlowError):
 
     pass
 
+
 class InvalidStateError(TaskFlowError):
     """Raised when agent/tool is in invalid state."""
 
     pass
+
 
 class MaxRetriesExceededError(TaskFlowError):
     """Raised when maximum retry attempts exceeded."""
